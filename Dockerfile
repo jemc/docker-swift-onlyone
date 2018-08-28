@@ -1,25 +1,48 @@
-FROM ubuntu:14.04
-MAINTAINER curtis <curtis@serverascode.com>
+FROM centos:7
+RUN yum install -y epel-release && \
+    yum clean all
+RUN yum install -y curl gcc memcached rsync sqlite xfsprogs git-core \
+                 libffi-devel xinetd liberasurecode-devel \
+                 openssl-devel python-setuptools \
+                 python-coverage python-devel python-nose \
+                 pyxattr python-eventlet \
+                 python-greenlet python-paste-deploy \
+                 python-netifaces python-pip python-dns \
+                 python-mock && \
+                yum clean all
+RUN pip install --upgrade pip setuptools pytz simplejson
 
-RUN apt-get update
-RUN apt-get install -y software-properties-common
-RUN add-apt-repository cloud-archive:liberty
-RUN apt-get update
-RUN apt-get install -y supervisor swift python-swiftclient rsync \
-                       swift-proxy swift-object memcached python-keystoneclient \
-                       python-swiftclient swift-plugin-s3 python-netifaces \
-                       python-xattr python-memcache \
-                       swift-account swift-container swift-object pwgen
+# Build liberasurecode from source and install.
+RUN yum install -y make autoconf automake libtool && \
+    curl -L -s https://github.com/openstack/liberasurecode/archive/1.5.0.tar.gz | tar xvz -C /tmp && \
+    cd /tmp/liberasurecode-1.5.0 && \
+    ./autogen.sh && ./configure && make && make test && make install && \
+    rm -rf /tmp/liberasurecode-1.5.0 && \
+    yum autoremove -y make autoconf automake libtool && \
+    yum clean all && \
+    echo /usr/local/lib > /etc/ld.so.conf.d/usr-local-lib.conf && \
+    ldconfig
 
-RUN mkdir -p /var/log/supervisor
+# Download swift sources.
+RUN yum install -y git-core && \
+    git clone --branch 3.5.0 --single-branch --depth 1 https://github.com/openstack/python-swiftclient.git /usr/local/src/python-swiftclient && \
+    cd /usr/local/src/python-swiftclient && python setup.py develop && \
+    git clone --branch 2.17.0 --single-branch --depth 1 https://github.com/openstack/swift.git /usr/local/src/swift && \
+    cd /usr/local/src/swift && python setup.py develop && \
+    git clone --branch 1.12 --single-branch --depth 1 https://github.com/openstack/swift3.git /usr/local/src/swift3 && \
+    cd /usr/local/src/swift3 && python setup.py develop && \
+    yum autoremove -y git-core git && \
+    yum clean all
+
+# Install supervisord and create swift user.
+RUN pip install supervisor==3.3.4 supervisor-stdout==0.1.1 && \
+    mkdir /var/log/supervisor/ && \
+    /usr/sbin/useradd -m -d /etc/swift -U swift && \
+    mkdir -p /etc/swift && chown -R swift:swift /etc/swift && \
+    mkdir -p /var/cache/swift  && chown -R swift:swift /var/cache/swift
+
+# Add configuration files.
 ADD files/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-#
-# Swift configuration
-# - Partially fom http://docs.openstack.org/developer/swift/development_saio.html
-#
-
-# not sure how valuable dispersion will be...
 ADD files/dispersion.conf /etc/swift/dispersion.conf
 ADD files/rsyncd.conf /etc/rsyncd.conf
 ADD files/swift.conf /etc/swift/swift.conf

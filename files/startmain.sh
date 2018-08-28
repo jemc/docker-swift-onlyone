@@ -20,10 +20,12 @@ fi
 if [ ! -e /srv/node ]; then
   mkdir /srv/node
 fi
+if [ ! -e /srv/node/sdb1 ]; then
+  mkdir /srv/node/sdb1
+fi
 chown -R swift:swift /srv
 
 if [ ! -e /etc/swift/account.builder ]; then
-
 	cd /etc/swift
 
 	# 2^& = 128 we are assuming just one drive
@@ -45,7 +47,6 @@ if [ ! -e /etc/swift/account.builder ]; then
 	echo "Copying ring files to /srv to save them if it's a docker volume..."
 	cp *.gz /srv
 	cp *.builder /srv
-
 fi
 
 # If you are going to put an ssl terminator in front of the proxy, then I believe
@@ -69,15 +70,4 @@ fi
 
 # Start supervisord
 echo "Starting supervisord..."
-/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
-
-#
-# Tail the log file for "docker log $CONTAINER_ID"
-#
-
-# sleep waiting for rsyslog to come up under supervisord
-sleep 3
-
-echo "Starting to tail /var/log/syslog...(hit ctrl-c if you are starting the container in a bash shell)"
-
-tail -n 0 -f /var/log/syslog
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

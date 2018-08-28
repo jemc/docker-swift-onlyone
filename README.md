@@ -49,7 +49,6 @@ Starting account-replicator...(/etc/swift/account-server.conf)
 Starting account-reaper...(/etc/swift/account-server.conf)
 Starting container-sync...(/etc/swift/container-server.conf)
 Starting object-updater...(/etc/swift/object-server.conf)
-Starting to tail /var/log/syslog...(hit ctrl-c if you are starting the container in a bash shell)
 ```
 
 At this point OpenStack Swift is running.
@@ -85,7 +84,5 @@ That's it!
 
 ## Todo
 
-* It seems supervisord running as root in the container, a better way to do this?
-* bash command to start rsyslog is still running...
 * Add all the files in /etc/swift with one ADD command?
 * supervisor pid file is getting setup in /etc/
